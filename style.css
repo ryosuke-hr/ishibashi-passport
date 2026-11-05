@@ -1,0 +1,357 @@
+:root {
+  --bg: #f6f3ee;
+  --surface: #ffffff;
+  --text: #2a2522;
+  --muted: #7a716a;
+  --border: #e4ddd3;
+  --accent: #c2410c;
+  --accent-text: #ffffff;
+  --card-from: #c2410c;
+  --card-to: #9a3412;
+  --card-text: #fff7ed;
+  --good: #15803d;
+  --bad: #b91c1c;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171412;
+    --surface: #221e1b;
+    --text: #efe9e3;
+    --muted: #a59a90;
+    --border: #3a332e;
+    --accent: #ea580c;
+    --card-from: #9a3412;
+    --card-to: #6b2410;
+    --good: #22c55e;
+    --bad: #f87171;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  line-height: 1.6;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+.loading {
+  text-align: center;
+  color: var(--muted);
+  margin-top: 40vh;
+}
+
+.demo {
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.title {
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.error {
+  color: var(--bad);
+  font-weight: 600;
+  margin: 12px 0 0;
+}
+
+.btn {
+  display: inline-block;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+}
+
+/* ===== 登録フォーム ===== */
+
+.code-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.code-input {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.code-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.how {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.how p {
+  margin: 6px 0;
+}
+
+/* ===== 会員証 ===== */
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--card-from), var(--card-to));
+  color: var(--card-text);
+  text-align: center;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}
+
+/* カードの上を光がゆっくり流れる。止まって見えたらスクショ */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.22) 50%, transparent 65%);
+  animation: shine 3s linear infinite;
+  pointer-events: none;
+}
+
+.card.expired {
+  filter: grayscale(1);
+}
+
+.card.expired::after,
+.card.expired .logo {
+  animation: none;
+}
+
+@keyframes shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.logo {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 8px;
+  animation: spin 4s linear infinite;
+}
+
+.logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.card-label {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+.card-name {
+  margin: 4px 0;
+  font-size: 26px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.card-expires {
+  margin: 0;
+  font-size: 14px;
+}
+
+.clock {
+  margin: 14px 0 0;
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== お店の方へ ===== */
+
+.shop-select {
+  width: 100%;
+  min-height: 48px;
+  margin: 8px 0 14px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.swipe {
+  position: relative;
+  height: 60px;
+  border-radius: 30px;
+  background: var(--accent);
+  color: var(--accent-text);
+  user-select: none;
+  touch-action: none;
+}
+
+.swipe.disabled {
+  background: var(--border);
+  color: var(--muted);
+}
+
+.swipe-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 40px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.swipe-knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  cursor: grab;
+  transition: transform 0.2s;
+}
+
+.swipe-knob.dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+.swipe.disabled .swipe-knob {
+  color: var(--muted);
+  cursor: default;
+}
+
+/* ===== 使用済みの表示 ===== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.stamp {
+  width: 100%;
+  max-width: 360px;
+  padding: 28px 20px;
+  border-radius: 20px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.stamp-mark {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 4px 18px;
+  border: 4px solid var(--good);
+  border-radius: 12px;
+  color: var(--good);
+  font-size: 30px;
+  font-weight: 800;
+  transform: rotate(-6deg);
+}
+
+.stamp-shop {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.stamp-time {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

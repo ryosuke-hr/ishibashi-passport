@@ -1,0 +1,365 @@
+// 石橋パスポートの会員証ページ（LIFF）
+// LINEでログインした人の IDトークンを Apps Script に送り、会員かどうかの判定と記録はサーバーでする。
+
+const CONFIG = {
+  LIFF_ID: '', // LINE Developers で作った LIFF アプリの ID（例 2001234567-AbCdEfGh）
+  API_URL: 'https://script.google.com/macros/s/AKfycbxCrjEKfF7RkQqGHUPuorf23ha3mPzeB5kTIy67YyECq4RYW69lcp38_SVFxqub1albZA/exec', // Apps Script のウェブアプリの URL（https://script.google.com/macros/s/.../exec）
+  PRICE: 500,
+  CONTACT: '公式LINEのトークで「振り込みました」と送ってください。入金を確かめて合言葉を送ります。',
+};
+
+// LIFF_ID が空か、URL に ?demo がついているときは、LINE もサーバーも使わないお試しモードで動く
+const DEMO = !CONFIG.LIFF_ID || new URLSearchParams(location.search).has('demo');
+
+const app = document.getElementById('app');
+
+const state = {
+  phase: 'loading', // loading / ready / error
+  error: '',
+  user: null, // { name }
+  member: null, // { name, expires, expired }
+  shops: [],
+  usedToday: [],
+  shop: '', // 店員さんが選んだ店名
+  busy: false,
+  notice: '', // 合言葉や利用のエラー表示
+  stamp: null, // 直前に使った { shop, time }
+};
+
+// ===== 起動 =====
+
+async function start() {
+  try {
+    if (!DEMO) {
+      await liff.init({ liffId: CONFIG.LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login({ redirectUri: location.href });
+        return;
+      }
+    }
+    const code = codeFromUrl();
+    const res = code ? await call('register', { code }) : await call('status');
+    if (code) history.replaceState(null, '', location.pathname + (DEMO ? '?demo' : ''));
+    if (!res.ok && code) {
+      // 合言葉がダメでも、会員証の画面（または登録フォーム）は出す
+      state.notice = res.message;
+      applyStatus(await call('status'));
+    } else {
+      applyStatus(res);
+    }
+  } catch (err) {
+    state.phase = 'error';
+    state.error = err.message || String(err);
+  }
+  render();
+}
+
+// 合言葉QR（https://liff.line.me/<ID>?code=XXXX）から開いたときの合言葉
+function codeFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('code')) return params.get('code');
+  const liffState = params.get('liff.state');
+  if (liffState) return new URLSearchParams(liffState.split('?')[1] || '').get('code');
+  return '';
+}
+
+function applyStatus(res) {
+  if (!res.ok) {
+    if (res.error === 'token' && !DEMO) {
+      // IDトークンの期限切れ。ログインし直す
+      liff.logout();
+      liff.login({ redirectUri: location.href });
+      return;
+    }
+    state.phase = 'error';
+    state.error = res.message;
+    return;
+  }
+  state.phase = 'ready';
+  state.user = res.user;
+  state.member = res.member;
+  state.shops = res.shops;
+  state.usedToday = res.usedToday;
+  if (state.shops.indexOf(state.shop) < 0) state.shop = '';
+}
+
+// ===== サーバーとのやりとり =====
+
+async function call(action, data) {
+  if (DEMO) return demoServer(action, data || {});
+  const idToken = liff.getIDToken();
+  const res = await fetch(CONFIG.API_URL, {
+    method: 'POST',
+    // text/plain にすると CORS の事前確認が起きず、Apps Script にそのまま届く
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action, idToken }, data)),
+  });
+  return res.json();
+}
+
+async function submitCode(code) {
+  state.busy = true;
+  state.notice = '';
+  render();
+  const res = await call('register', { code }).catch(networkError);
+  state.busy = false;
+  if (res.ok) applyStatus(res);
+  else state.notice = res.message;
+  render();
+}
+
+async function useShop() {
+  const shop = state.shop;
+  state.busy = true;
+  state.notice = '';
+  render();
+  const res = await call('use', { shop }).catch(networkError);
+  state.busy = false;
+  if (res.ok) {
+    applyStatus(res);
+    state.stamp = { shop, time: timeText(new Date()) };
+  } else {
+    state.notice = res.message;
+  }
+  render();
+}
+
+function networkError() {
+  return { ok: false, message: '通信できませんでした。電波のよいところでもう一度試してください' };
+}
+
+// ===== 描画 =====
+
+function render() {
+  app.replaceChildren();
+  if (state.phase === 'loading') {
+    app.append(el('p', 'loading', '読み込み中…'));
+    return;
+  }
+  if (state.phase === 'error') {
+    app.append(el('h1', 'title', '石橋パスポート'), el('p', 'error', state.error));
+    const retry = el('button', 'btn', 'もう一度読み込む');
+    retry.addEventListener('click', () => location.reload());
+    app.append(retry);
+    return;
+  }
+  if (DEMO) app.append(el('p', 'demo', 'お試しモード（LINE・サーバーにはつながっていません）'));
+  if (state.member) renderCard();
+  else renderRegister();
+}
+
+function renderRegister() {
+  const box = el('section', 'panel');
+  box.append(
+    el('h1', 'title', '石橋パスポート'),
+    el('p', '', `${state.user.name} さん、有料パス（${CONFIG.PRICE}円）の合言葉を入れると会員になれます。`),
+  );
+
+  const form = el('form', 'code-form');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.inputMode = 'text';
+  input.autocomplete = 'off';
+  input.autocapitalize = 'characters';
+  input.maxLength = 8;
+  input.placeholder = '8文字の合言葉';
+  input.className = 'code-input';
+  const button = el('button', 'btn primary', state.busy ? '確かめています…' : '会員になる');
+  button.type = 'submit';
+  button.disabled = state.busy;
+  form.append(input, button);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (input.value.trim()) submitCode(input.value);
+  });
+  box.append(form);
+  if (state.notice) box.append(el('p', 'error', state.notice));
+
+  const how = el('div', 'how');
+  how.append(
+    el('h2', '', '有料パスの買い方'),
+    el('p', '', '現金: 新歓や生協前の販売所で代金を払うと、合言葉のQRを見せてもらえます。LINEのカメラで読むとすぐ会員になります。'),
+    el('p', '', '振込: ' + CONFIG.CONTACT),
+  );
+  box.append(how);
+  app.append(box);
+}
+
+function renderCard() {
+  const m = state.member;
+  const card = el('section', 'card' + (m.expired ? ' expired' : ''));
+  const logo = el('div', 'logo');
+  logo.innerHTML = LOGO_SVG;
+  card.append(
+    logo,
+    el('p', 'card-label', '石橋パスポート 有料パス'),
+    el('p', 'card-name', m.name),
+    el('p', 'card-expires', m.expired ? '有効期限切れ（' + dateLabel(m.expires) + '）' : dateLabel(m.expires) + ' まで有効'),
+  );
+  const clock = el('p', 'clock', '');
+  clock.id = 'clock';
+  card.append(clock);
+  app.append(card);
+  tick();
+
+  if (m.expired) {
+    app.append(el('p', 'note', 'この会員証は使えません。'));
+    return;
+  }
+
+  const staff = el('section', 'panel staff');
+  staff.append(el('h2', '', 'お店の方へ'), el('p', 'note', '時計とロゴが動いているのを確かめてから、店名を選んでバーを右へスワイプしてください。'));
+
+  const select = document.createElement('select');
+  select.className = 'shop-select';
+  select.append(new Option('店名を選ぶ', ''));
+  for (const shop of state.shops) {
+    const used = state.usedToday.indexOf(shop) >= 0;
+    const option = new Option(used ? shop + '（今日は使用済み）' : shop, shop);
+    option.disabled = used;
+    select.append(option);
+  }
+  select.value = state.shop;
+  select.addEventListener('change', () => {
+    state.shop = select.value;
+    state.notice = '';
+    render();
+  });
+  staff.append(select);
+  staff.append(swipeBar(!state.shop || state.busy));
+  if (state.notice) staff.append(el('p', 'error', state.notice));
+
+  if (state.usedToday.length) {
+    staff.append(el('p', 'note', '今日使ったお店: ' + state.usedToday.join('、')));
+  }
+  app.append(staff);
+
+  if (state.stamp) app.append(stampOverlay(state.stamp));
+}
+
+// 右へスワイプしたら使用済みにするバー
+function swipeBar(disabled) {
+  const bar = el('div', 'swipe' + (disabled ? ' disabled' : ''));
+  const label = el('span', 'swipe-label', state.busy ? '記録しています…' : disabled ? '先に店名を選んでください' : '右へスワイプで使用済み →');
+  const knob = el('div', 'swipe-knob', '→');
+  bar.append(label, knob);
+  if (disabled) return bar;
+
+  let startX = 0;
+  let dx = 0;
+  const max = () => bar.clientWidth - knob.offsetWidth - 8;
+  knob.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    dx = 0;
+    knob.setPointerCapture(e.pointerId);
+    knob.classList.add('dragging');
+  });
+  knob.addEventListener('pointermove', (e) => {
+    if (!knob.hasPointerCapture(e.pointerId)) return;
+    dx = Math.max(0, Math.min(max(), e.clientX - startX));
+    knob.style.transform = `translateX(${dx}px)`;
+  });
+  const end = (e) => {
+    if (!knob.hasPointerCapture(e.pointerId)) return;
+    knob.releasePointerCapture(e.pointerId);
+    knob.classList.remove('dragging');
+    if (dx >= max() * 0.9) {
+      knob.style.transform = `translateX(${max()}px)`;
+      useShop();
+    } else {
+      knob.style.transform = '';
+    }
+  };
+  knob.addEventListener('pointerup', end);
+  knob.addEventListener('pointercancel', end);
+  return bar;
+}
+
+function stampOverlay(stamp) {
+  const overlay = el('div', 'overlay');
+  const box = el('div', 'stamp');
+  box.append(el('p', 'stamp-mark', '使用済み'), el('p', 'stamp-shop', stamp.shop), el('p', 'stamp-time', stamp.time));
+  const close = el('button', 'btn', '閉じる');
+  close.addEventListener('click', () => {
+    state.stamp = null;
+    state.shop = '';
+    render();
+  });
+  box.append(close);
+  overlay.append(box);
+  return overlay;
+}
+
+// 秒で動く時計。スクショでないことを見分けるため、毎秒書き換える
+function tick() {
+  const clock = document.getElementById('clock');
+  if (!clock) return;
+  const now = new Date();
+  clock.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${timeText(now)}`;
+}
+setInterval(tick, 1000);
+
+// ===== 小道具 =====
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+function timeText(date) {
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
+function dateLabel(ymd) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  return `${y}年${m}月${d}日`;
+}
+
+const LOGO_SVG =
+  '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="4"/>' +
+  '<path d="M14 38 Q32 18 50 38" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>' +
+  '<path d="M18 38v8M46 38v8M32 30v16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>';
+
+// ===== お試しモードのにせサーバー =====
+// 合言葉 TESTCODE で会員になれる。?demo&member をつけると最初から会員
+
+const demo = {
+  member: new URLSearchParams(location.search).has('member'),
+  codes: { TESTCODE: false, USEDCODE: true },
+  used: [],
+};
+
+function demoServer(action, data) {
+  const fail = (error, message) => ({ ok: false, error, message });
+  if (action === 'register') {
+    const code = String(data.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!demo.member) {
+      if (code.length !== 8) return fail('code', '合言葉は8文字です');
+      if (!(code in demo.codes)) return fail('code', 'この合言葉は見つかりません。打ち間違いがないか確かめてください');
+      if (demo.codes[code]) return fail('used', 'この合言葉はもう使われています');
+      demo.codes[code] = true;
+      demo.member = true;
+    }
+  }
+  if (action === 'use') {
+    if (demo.used.indexOf(data.shop) >= 0) return fail('usedToday', data.shop + ' の特典は今日はもう使いました');
+    demo.used.push(data.shop);
+  }
+  return new Promise((resolve) =>
+    setTimeout(
+      () =>
+        resolve({
+          ok: true,
+          user: { name: 'お試しユーザー' },
+          member: demo.member ? { name: 'お試しユーザー', expires: '2027-04-30', expired: false } : null,
+          shops: ['石橋カレー', '喫茶まちかど', '古本ハシモト'],
+          usedToday: demo.used.slice(),
+        }),
+      300,
+    ),
+  );
+}
+
+start();
