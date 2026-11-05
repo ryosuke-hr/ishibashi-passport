@@ -2,7 +2,7 @@
 // LINEでログインした人の IDトークンを Apps Script に送り、会員かどうかの判定と記録はサーバーでする。
 
 const CONFIG = {
-  LIFF_ID: '', // LINE Developers で作った LIFF アプリの ID（例 2001234567-AbCdEfGh）
+  LIFF_ID: '2012391980-YlMmgFG7', // LINE Developers で作った LIFF アプリの ID（例 2001234567-AbCdEfGh）
   API_URL: 'https://script.google.com/macros/s/AKfycbxCrjEKfF7RkQqGHUPuorf23ha3mPzeB5kTIy67YyECq4RYW69lcp38_SVFxqub1albZA/exec', // Apps Script のウェブアプリの URL（https://script.google.com/macros/s/.../exec）
   PRICE: 500,
   CONTACT: '公式LINEのトークで「振り込みました」と送ってください。入金を確かめて合言葉を送ります。',
