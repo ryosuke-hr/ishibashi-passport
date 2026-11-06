@@ -2,6 +2,8 @@
 
 石橋商店街の新入生向けパスポートの、有料パス会員証ページ（LIFF）とサーバー（Google Apps Script）。仕様書は Claude Docs の「石橋パスポート 仕様書(試験版)」。あいさつメッセージ・リッチメニュー・配信・スタンプ（ショップカード）は公式LINEの標準機能で作るので、ここにコードは無い。
 
+`lp/` は一般向けの紹介ページ（https://ryosuke-hr.github.io/ishibashi-passport/lp/ ）。JavaScript なしの `index.html` + `style.css` だけ。友だち追加リンクは `https://lin.ee/rHQqpm2`、`qr.svg` はそのリンクの QR（`npx -y qrcode@1.5.4 -t svg -e M -m 1 -o qr.svg <URL>` で作った）。
+
 ## Running
 
 リポジトリのルートから動かす（`.claude/launch.json` の `ishibashi`）。`app.js` の `CONFIG.LIFF_ID` が空か、URL に `?demo` があると、LINE もサーバーも使わないお試しモードになる。お試しの合言葉は `TESTCODE`（未使用）と `USEDCODE`（使用済み）。`?demo&member` で最初から会員の画面。
