@@ -223,8 +223,25 @@ h3 { font-weight: 700; font-size: 20px; line-height: 1.5; }
   font-size: 14px;
 }
 
+/* 特定商取引法に基づく表記 */
+.logo-link { color: var(--ink); text-decoration: none; }
+.legal { max-width: 760px; }
+.legal h1 { font-size: clamp(24px, 4.5vw, 32px); margin-bottom: 32px; }
+.legal-list { margin: 0; border-top: 1px solid var(--line); }
+.legal-list div {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 4px 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.legal-list dt { font-weight: 700; }
+.legal-list dd { margin: 0; color: var(--muted); }
+.foot-links a { color: var(--ink); }
+
 @media (max-width: 600px) {
   body { font-size: 16px; }
+  .legal-list div { grid-template-columns: 1fr; }
   .hero { padding: 40px 0 56px; }
   .section { padding: 60px 0; }
   .join-box { padding: 24px; justify-content: center; }
