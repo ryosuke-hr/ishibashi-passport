@@ -4,7 +4,7 @@
 const CONFIG = {
   LIFF_ID: '2012391980-YlMmgFG7', // LINE Developers で作った LIFF アプリの ID（例 2001234567-AbCdEfGh）
   API_URL: 'https://script.google.com/macros/s/AKfycbxCrjEKfF7RkQqGHUPuorf23ha3mPzeB5kTIy67YyECq4RYW69lcp38_SVFxqub1albZA/exec', // Apps Script のウェブアプリの URL（https://script.google.com/macros/s/.../exec）
-  PRICE: 500,
+  PRICE: 1500,
   CONTACT: '公式LINEのトークで「振り込みました」と送ってください。入金を確かめて会員登録用のQRコードを送ります。',
 };
 
@@ -146,7 +146,7 @@ function renderRegister() {
   const box = el('section', 'panel');
   box.append(
     el('h1', 'title', '石橋パスポート'),
-    el('p', '', `${state.user.name} さん、有料パス（${CONFIG.PRICE}円）を買うと、会員登録用のQRコードがもらえます。LINEのカメラで読むと、すぐ会員になれます。`),
+    el('p', '', `${state.user.name} さん、有料パス（${CONFIG.PRICE.toLocaleString('ja-JP')}円）を買うと、会員登録用のQRコードがもらえます。LINEのカメラで読むと、すぐ会員になれます。`),
   );
   if (state.notice) box.append(el('p', 'error', state.notice));
 
