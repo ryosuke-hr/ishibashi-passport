@@ -14,7 +14,7 @@ npx -y http-server@14.1.1 ishibashi -p 8040 -c-1
 
 ## 設定手順（本番）
 
-1. スプレッドシートを作り、拡張機能 > Apps Script に `server/Code.gs` を貼る。プロジェクトの設定でタイムゾーンを東京にし、スクリプトプロパティに `LINE_CHANNEL_ID`・`LIFF_URL`・`PASS_EXPIRES`・`SHOPS` を入れる（中身は `Code.gs` の先頭）。
+1. スプレッドシートを作り、拡張機能 > Apps Script に `server/Code.gs` を貼る。プロジェクトの設定でタイムゾーンを東京にし、スクリプトプロパティに `LINE_CHANNEL_ID`・`LIFF_URL`・`SHOPS`（任意で `PASS_MONTHS`）を入れる（中身は `Code.gs` の先頭）。
 2. デプロイ > 新しいデプロイ > ウェブアプリ（実行ユーザー「自分」、アクセス「全員」）。出てきた URL を `CONFIG.API_URL` に入れる。コードを直したら「デプロイを管理」で同じデプロイの新バージョンにする（URL が変わらない）。
 3. LINE Developers で公式LINEと同じプロバイダーに LINEログインチャネルを作り、LIFF アプリ（サイズ Full、スコープ `openid` `profile`、エンドポイントは公開した `index.html` の URL）を足す。チャネルは「公開済み」にする。LIFF ID を `CONFIG.LIFF_ID` に入れる。
 4. Apps Script で `makeCodes` を実行すると、codes シートに合言葉と QR が50個並ぶ。
@@ -25,6 +25,7 @@ npx -y http-server@14.1.1 ishibashi -p 8040 -c-1
 - ページは `liff.getIDToken()` の IDトークンを毎回サーバーに送り、サーバーは LINE の `/oauth2/v2.1/verify` で本人確認してから判定する。会員かどうか・1店1日1回の判定はサーバーだけがする（ページは表示だけ）。
 - リクエストは `text/plain` の POST で `{ action, idToken, ... }`。`action` は `status` / `register`（`code`）/ `use`（`shop`）。どれも成功すると `status` と同じ形 `{ ok, user, member, shops, usedToday }` を返し、失敗は `{ ok: false, error, message }`。`error: 'token'` ならページがログインし直す。
 - 合言葉は8文字（`I O 0 1` を使わない）。QR は `LIFF_URL?code=XXXX` で、ページは `code` か `liff.state` の中から拾って `register` する。登録と利用は `LockService` で順番に処理し、同じ合言葉の取り合いを防ぐ。
+- 有効期限は人ごと。登録した日の `PASS_MONTHS`（省略で3）か月後の同じ日（無ければ月末）を、登録のときに `members` の有効期限の列に書く。判定はその列だけを見るので、延長や返金はその行を手で直す。
 - シートは `codes` / `members` / `uses`。無ければ見出し付きで自動で作る。店の一覧はスクリプトプロパティ `SHOPS` だけが正で、ページはサーバーから受け取る。
 - 時計は毎秒 `#clock` の文字だけ書き換え、ロゴの回転とカードの光は CSS アニメーション。それ以外は `render()` で全部描き直す。保存するものが無いので `localStorage` は使わない。
 - LIFF SDK（`static.line-scdn.net`）だけは外部から読む（「外部ライブラリなし」の例外）。

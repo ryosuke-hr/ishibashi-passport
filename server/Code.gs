@@ -4,7 +4,7 @@
 // スクリプトプロパティ（プロジェクトの設定 > スクリプト プロパティ）:
 //   LINE_CHANNEL_ID  LINEログインチャネルのチャネルID
 //   LIFF_URL         https://liff.line.me/<LIFF ID>
-//   PASS_EXPIRES     有料パスの有効期限（例 2027-04-30。この日の終わりまで使える）
+//   PASS_MONTHS      有料パスの有効期間の月数（省略すると 3）。登録した日の Nか月後の同じ日の終わりまで使える
 //   SHOPS            参加店の名前をカンマ区切りで（例 石橋カレー,喫茶まちかど,古本ハシモト）
 
 const TZ = 'Asia/Tokyo';
@@ -72,7 +72,7 @@ function register(user, rawCode) {
 
     const now = nowText();
     sheet.getRange(index + 1, 2, 1, 4).setValues([['使用済み', user.name, user.id, now]]);
-    sheetOf('members').appendRow([user.id, user.name, now, expiresText(), code]);
+    sheetOf('members').appendRow([user.id, user.name, now, expiresText(new Date()), code]);
   } finally {
     lock.releaseLock();
   }
@@ -194,8 +194,13 @@ function nowText() {
   return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm:ss');
 }
 
-function expiresText() {
-  return prop('PASS_EXPIRES');
+// 登録日の Nか月後の同じ日。その月に同じ日が無ければ月末（11月30日 + 3か月 → 2月28日）
+function expiresText(registered) {
+  const months = Number(PropertiesService.getScriptProperties().getProperty('PASS_MONTHS')) || 3;
+  const [y, m, d] = Utilities.formatDate(registered, TZ, 'yyyy-M-d').split('-').map(Number);
+  const lastDay = new Date(y, m - 1 + months + 1, 0).getDate();
+  const expires = new Date(y, m - 1 + months, Math.min(d, lastDay));
+  return Utilities.formatDate(expires, TZ, 'yyyy-MM-dd');
 }
 
 function shopList() {
