@@ -4,9 +4,7 @@
 const CONFIG = {
   LIFF_ID: '2012391980-YlMmgFG7', // LINE Developers で作った LIFF アプリの ID（例 2001234567-AbCdEfGh）
   API_URL: 'https://script.google.com/macros/s/AKfycbxCrjEKfF7RkQqGHUPuorf23ha3mPzeB5kTIy67YyECq4RYW69lcp38_SVFxqub1albZA/exec', // Apps Script のウェブアプリの URL（https://script.google.com/macros/s/.../exec）
-  PRICE: 1500,
-  CONTACT: '公式LINEのトークで「振り込みました」と送ってください。入金を確かめて会員登録用のQRコードを送ります。',
-};
+  PRICE: 1500,};
 
 // LIFF_ID が空か、URL に ?demo がついているときは、LINE もサーバーも使わないお試しモードで動く
 const DEMO = !CONFIG.LIFF_ID || new URLSearchParams(location.search).has('demo');
@@ -153,8 +151,8 @@ function renderRegister() {
   const how = el('div', 'how');
   how.append(
     el('h2', '', '有料パスの買い方'),
-    el('p', '', '現金: 新歓や生協前の販売所で代金を払うと、会員登録用のQRコードを見せてもらえます。LINEのカメラで読むとすぐ会員になります。'),
-    el('p', '', '振込: ' + CONFIG.CONTACT),
+    el('p', '', '公式LINEの「パスを購入」をタップすると、購入の手続きに進みます。'),
+    el('p', '', '入金していただいた後に、パスの人専用のQRコードを送ります。そのQRコードから登録をお願いします。'),
   );
   box.append(how);
   app.append(box);
