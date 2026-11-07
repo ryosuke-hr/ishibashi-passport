@@ -6,7 +6,7 @@
 
 ## Running
 
-リポジトリのルートから動かす（`.claude/launch.json` の `ishibashi`）。`app.js` の `CONFIG.LIFF_ID` が空か、URL に `?demo` があると、LINE もサーバーも使わないお試しモードになる。お試しの合言葉は `TESTCODE`（未使用）と `USEDCODE`（使用済み）。`?demo&member` で最初から会員の画面。
+リポジトリのルートから動かす（`.claude/launch.json` の `ishibashi`）。`app.js` の `CONFIG.LIFF_ID` が空か、URL に `?demo` があると、LINE もサーバーも使わないお試しモードになる。会員登録は QR（`?code=`）だけで、合言葉を打ち込む欄は無い。お試しでは `?demo&code=TESTCODE` で登録、`?demo&code=USEDCODE` で「もう使われています」、`?demo&member` で最初から会員、`?demo&expired` で期限切れの画面。
 
 ```bash
 npx -y http-server@14.1.1 ishibashi -p 8040 -c-1

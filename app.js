@@ -5,7 +5,7 @@ const CONFIG = {
   LIFF_ID: '2012391980-YlMmgFG7', // LINE Developers で作った LIFF アプリの ID（例 2001234567-AbCdEfGh）
   API_URL: 'https://script.google.com/macros/s/AKfycbxCrjEKfF7RkQqGHUPuorf23ha3mPzeB5kTIy67YyECq4RYW69lcp38_SVFxqub1albZA/exec', // Apps Script のウェブアプリの URL（https://script.google.com/macros/s/.../exec）
   PRICE: 500,
-  CONTACT: '公式LINEのトークで「振り込みました」と送ってください。入金を確かめて合言葉を送ります。',
+  CONTACT: '公式LINEのトークで「振り込みました」と送ってください。入金を確かめて会員登録用のQRコードを送ります。',
 };
 
 // LIFF_ID が空か、URL に ?demo がついているときは、LINE もサーバーも使わないお試しモードで動く
@@ -26,6 +26,11 @@ const state = {
   stamp: null, // 直前に使った { shop, time }
 };
 
+const QR_ERRORS = {
+  used: 'このQRコードはもう使われています。買ったときに見せてもらったQRか、販売した人に確かめてください',
+  code: 'このQRコードは使えません。販売した人に声をかけてください',
+};
+
 // ===== 起動 =====
 
 async function start() {
@@ -41,8 +46,8 @@ async function start() {
     const res = code ? await call('register', { code }) : await call('status');
     if (code) history.replaceState(null, '', location.pathname + (DEMO ? '?demo' : ''));
     if (!res.ok && code) {
-      // 合言葉がダメでも、会員証の画面（または登録フォーム）は出す
-      state.notice = res.message;
+      // QRがダメでも、会員証の画面（または買い方の説明）は出す。文字入力は無いので、QRの言葉で伝える
+      state.notice = QR_ERRORS[res.error] || res.message;
       applyStatus(await call('status'));
     } else {
       applyStatus(res);
@@ -97,17 +102,6 @@ async function call(action, data) {
   return res.json();
 }
 
-async function submitCode(code) {
-  state.busy = true;
-  state.notice = '';
-  render();
-  const res = await call('register', { code }).catch(networkError);
-  state.busy = false;
-  if (res.ok) applyStatus(res);
-  else state.notice = res.message;
-  render();
-}
-
 async function useShop() {
   const shop = state.shop;
   state.busy = true;
@@ -152,33 +146,14 @@ function renderRegister() {
   const box = el('section', 'panel');
   box.append(
     el('h1', 'title', '石橋パスポート'),
-    el('p', '', `${state.user.name} さん、有料パス（${CONFIG.PRICE}円）の合言葉を入れると会員になれます。`),
+    el('p', '', `${state.user.name} さん、有料パス（${CONFIG.PRICE}円）を買うと、会員登録用のQRコードがもらえます。LINEのカメラで読むと、すぐ会員になれます。`),
   );
-
-  const form = el('form', 'code-form');
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.inputMode = 'text';
-  input.autocomplete = 'off';
-  input.autocapitalize = 'characters';
-  input.maxLength = 8;
-  input.placeholder = '8文字の合言葉';
-  input.className = 'code-input';
-  const button = el('button', 'btn primary', state.busy ? '確かめています…' : '会員になる');
-  button.type = 'submit';
-  button.disabled = state.busy;
-  form.append(input, button);
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (input.value.trim()) submitCode(input.value);
-  });
-  box.append(form);
   if (state.notice) box.append(el('p', 'error', state.notice));
 
   const how = el('div', 'how');
   how.append(
     el('h2', '', '有料パスの買い方'),
-    el('p', '', '現金: 新歓や生協前の販売所で代金を払うと、合言葉のQRを見せてもらえます。LINEのカメラで読むとすぐ会員になります。'),
+    el('p', '', '現金: 新歓や生協前の販売所で代金を払うと、会員登録用のQRコードを見せてもらえます。LINEのカメラで読むとすぐ会員になります。'),
     el('p', '', '振込: ' + CONFIG.CONTACT),
   );
   box.append(how);
@@ -188,17 +163,30 @@ function renderRegister() {
 function renderCard() {
   const m = state.member;
   const card = el('section', 'card' + (m.expired ? ' expired' : ''));
+
+  const head = el('div', 'card-head');
   const logo = el('div', 'logo');
   logo.innerHTML = LOGO_SVG;
-  card.append(
-    logo,
-    el('p', 'card-label', '石橋パスポート 有料パス'),
-    el('p', 'card-name', m.name),
-    el('p', 'card-expires', m.expired ? '有効期限切れ（' + dateLabel(m.expires) + '）' : dateLabel(m.expires) + ' まで有効'),
-  );
+  const brand = el('div', 'brand');
+  brand.append(el('p', 'brand-ja', '石橋パスポート'), el('p', 'brand-en', 'ISHIBASHI PASSPORT'));
+  head.append(logo, brand, el('span', 'chip', '有料パス'));
+
+  const holder = el('div', 'card-holder');
+  holder.append(el('p', 'card-small', 'MEMBER'), el('p', 'card-name', m.name));
+
+  const foot = el('div', 'card-foot');
+  const expires = el('div', '');
+  expires.append(el('p', 'card-small', '有効期限'), el('p', 'card-expires', dateLabel(m.expires) + ' まで'));
+  const now = el('div', 'now');
+  const day = el('p', 'card-small', '');
+  day.id = 'today';
   const clock = el('p', 'clock', '');
   clock.id = 'clock';
-  card.append(clock);
+  now.append(day, clock);
+  foot.append(expires, now);
+
+  card.append(head, holder, foot);
+  if (m.expired) card.append(el('p', 'expired-stamp', '有効期限切れ'));
   app.append(card);
   tick();
 
@@ -295,7 +283,8 @@ function tick() {
   const clock = document.getElementById('clock');
   if (!clock) return;
   const now = new Date();
-  clock.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${timeText(now)}`;
+  document.getElementById('today').textContent = `${now.getMonth() + 1}月${now.getDate()}日`;
+  clock.textContent = timeText(now);
 }
 setInterval(tick, 1000);
 
@@ -323,10 +312,12 @@ const LOGO_SVG =
   '<path d="M18 38v8M46 38v8M32 30v16" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>';
 
 // ===== お試しモードのにせサーバー =====
-// 合言葉 TESTCODE で会員になれる。?demo&member をつけると最初から会員
+// ?demo&code=TESTCODE で会員になれる（USEDCODE は使用済み）。?demo&member で最初から会員、?demo&expired で期限切れの会員
 
+const demoParams = new URLSearchParams(location.search);
 const demo = {
-  member: new URLSearchParams(location.search).has('member'),
+  member: demoParams.has('member') || demoParams.has('expired'),
+  expired: demoParams.has('expired'),
   codes: { TESTCODE: false, USEDCODE: true },
   used: [],
 };
@@ -353,7 +344,7 @@ function demoServer(action, data) {
         resolve({
           ok: true,
           user: { name: 'お試しユーザー' },
-          member: demo.member ? { name: 'お試しユーザー', expires: '2027-04-30', expired: false } : null,
+          member: demo.member ? { name: 'お試しユーザー', expires: demo.expired ? '2026-04-30' : '2027-04-30', expired: demo.expired } : null,
           shops: ['石橋カレー', '喫茶まちかど', '古本ハシモト'],
           usedToday: demo.used.slice(),
         }),
